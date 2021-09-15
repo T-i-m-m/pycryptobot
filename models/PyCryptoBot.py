@@ -229,6 +229,12 @@ class PyCryptoBot(BotConfig):
                     market, to_coinbase_pro_granularity(granularity), websocket
                 )
 
+    def getSmartSwitch(self):
+        return self.smart_switch
+    
+    def getSmartSwitchRange(self):
+        return self.smart_switch_range
+
     def getSmartSwitchDataFrame(
         self,
         df: pd.DataFrame,
@@ -351,6 +357,9 @@ class PyCryptoBot(BotConfig):
         end: str = "",
     ) -> pd.DataFrame:
         if self.isSimulation():
+            self.ema1226_5m_cache = self.getSmartSwitchDataFrame(
+                self.ema1226_5m_cache, market, 300, start, end
+            )
             self.ema1226_15m_cache = self.getSmartSwitchDataFrame(
                 self.ema1226_15m_cache, market, 900, start, end
             )
@@ -362,7 +371,26 @@ class PyCryptoBot(BotConfig):
             )
 
             if self.extraCandlesFound == False:
-                if granularity == 900:
+                if granularity == 300:
+                    if (
+                        self.getDateFromISO8601Str(
+                            str(self.ema1226_5m_cache.index.format()[0])
+                        ).isoformat()
+                        != self.getDateFromISO8601Str(start).isoformat()
+                    ):
+                        textBox = TextBox(80, 26)
+                        textBox.singleLine()
+                        textBox.center(
+                            f"{str(self.exchange)}is not returning data for the requested start date."                        
+                        )
+                        textBox.center(
+                            f"Switching to earliest start date: {str(self.ema1226_5m_cache.head(1).index.format()[0])}"                        
+                        )
+                        textBox.singleLine()
+                        self.simstartdate = str(
+                            self.ema1226_5m_cache.head(1).index.format()[0]
+                        )
+                elif granularity == 900:
                     if (
                         self.getDateFromISO8601Str(
                             str(self.ema1226_15m_cache.index.format()[0])
@@ -401,7 +429,9 @@ class PyCryptoBot(BotConfig):
                             self.ema1226_1h_cache.head(1).index.format()[0]
                         )
 
-            if granularity == 900:
+            if granularity == 300:
+                return self.ema1226_5m_cache            
+            elif granularity == 900:
                 return self.ema1226_15m_cache
             else:
                 return self.ema1226_1h_cache
@@ -435,6 +465,38 @@ class PyCryptoBot(BotConfig):
 
     def getSmartSwitch(self):
         return self.smart_switch
+
+    def is15mEMA1226Bull(self, iso8601end: str = "", websocket=None):
+        try:
+            if self.isSimulation() and isinstance(self.ema1226_15m_cache, pd.DataFrame):
+                df_data = self.ema1226_15m_cache.loc[
+                    self.ema1226_15m_cache["date"] <= iso8601end
+                ].copy()
+            elif self.exchange == "coinbasepro":
+                api = CBPublicAPI()
+                df_data = api.getHistoricalData(self.market, 900, websocket)
+                self.ema1226_15m_cache = df_data
+            elif self.exchange == "binance":
+                api = BPublicAPI(api_url=self.getAPIURL())
+                df_data = api.getHistoricalData(self.market, "15m", websocket)
+                self.ema1226_15m_cache = df_data
+            else:
+                return False
+
+            ta = TechnicalAnalysis(df_data)
+
+            if "ema12" not in df_data:
+                ta.addEMA(12)
+
+            if "ema26" not in df_data:
+                ta.addEMA(26)
+
+            df_last = ta.getDataFrame().copy().iloc[-1, :]
+            df_last["bull"] = df_last["ema12"] > df_last["ema26"]
+
+            return bool(df_last["bull"])
+        except Exception:
+            return False
 
     def is1hEMA1226Bull(self, iso8601end: str = "", websocket=None):
         try:
@@ -1049,6 +1111,8 @@ class PyCryptoBot(BotConfig):
         if self.isVerbose():
             textBox.line("Market", self.getMarket())
             textBox.line("Granularity", str(self.getGranularity()) + " seconds")
+            if self.getSmartSwitch() != 0:
+                textBox.line("Smart Switching", str(self.getSmartSwitchRange()) + " seconds")
             textBox.singleLine()
 
         if self.isLive():

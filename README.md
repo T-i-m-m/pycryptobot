@@ -315,10 +315,12 @@ So if you created above helm values file as config-eth-eur.yaml, you would run:
 
 Smart switching:
 
+* If the EMA12 is greater than the EMA26 on the 15 minute and 1 hour intervals switch to start trading on the 5 minute intervals
 * If the EMA12 is greater than the EMA26 on the 1 hour and 6 hour intervals switch to start trading on the 15 minute intervals
+* If the EMA12 is lower than the EMA26 on the 15 minute and 1 hour intervals switch back to trade on the 15 minute intervals
 * If the EMA12 is lower than the EMA26 on the 1 hour and 6 hour intervals switch back to trade on the 1 hour intervals
 * If a "granularity" is specified as an argument or in the config.json then smart switching will be disabled
-* Force smart switching between 1 hour and 15 minute intervals with "smartswitch" argument or config option (1 or 0)
+* Force smart switching between 1 hour, 15 minute and 5 minute intervals with "smartswitch"/"smartswitchrange" arguments or corresponding config options
 
 Buy signal:
 

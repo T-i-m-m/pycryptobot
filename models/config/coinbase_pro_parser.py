@@ -131,3 +131,14 @@ def parser(app, coinbase_config, args={}):
             app.smart_switch = 0
         else:
             raise ValueError('granularity supplied is not supported.')
+            
+    if 'smartswitchrange' in config and config['smartswitchrange'] is not None:
+        if isinstance(config['smartswitchrange'], str):
+            smartswitchrange = config['smartswitchrange'] 
+            if smartswitchrange in ['3600-900', '3600-300', '900-300', '3600+300']:
+                app.smart_switch = 1
+                app.smart_switch_range = config['smartswitchrange']
+                if smartswitchrange == '900-300':
+                    app.granularity = 900
+            else:
+                raise ValueError('smart switch range supplied is not supported.')

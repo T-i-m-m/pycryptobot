@@ -144,3 +144,16 @@ def parser(app, binance_config, args={}):
                 app.smart_switch = 0
             # else:
             #     raise ValueError('granularity supplied is not supported.')
+
+    if 'smartswitchrange' in config and config['smartswitchrange'] is not None:
+        if isinstance(config['smartswitchrange'], str):
+            if config['smartswitchrange'] == '1h-15m':
+                app.smart_switch_range = "3600-900"
+            elif config['smartswitchrange'] == '1h-5m':
+                app.smart_switch_range = "3600-300"
+            elif config['smartswitchrange'] == '15m-5m':
+                app.smart_switch_range = "900-300"
+            elif config['smartswitchrange'] == '1h+5m':
+                app.smart_switch_range = "3600+300"
+            else:
+                 raise ValueError('smart switch range supplied is not supported.')

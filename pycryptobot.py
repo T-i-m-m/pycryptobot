@@ -194,52 +194,100 @@ def executeJob(
     )
 
     current_sim_date = formatted_current_df_index
-
+    if app.getGranularity() == 300:
+        granTime = "5 min"
+    if app.getGranularity() == 900:
+        granTime = "15 min"
+    if app.getGranularity() == 3600:
+        granTime = "1 h"
+    
     # use actual sim mode date to check smartchswitch
     if (
-        app.getSmartSwitch() == 1
-        and app.getGranularity() == 3600
+        app.getSmartSwitch() == 1 
+        and app.is15mEMA1226Bull(current_sim_date, websocket) is True 
         and app.is1hEMA1226Bull(current_sim_date, websocket) is True
-        and app.is6hEMA1226Bull(current_sim_date, websocket) is True
+        and app.getGranularity() != 300
+        and app.getSmartSwitchRange() != "3600-900"
     ):
         Logger.info(
-            "*** smart switch from granularity 3600 (1 hour) to 900 (15 min) ***"
+            f"*** smart switch from granularity {app.getGranularity()} ({granTime}) to 300 (5 min) ***"
+        )
+        app.notifyTelegram(
+            f"{app.getMarket()} smart switch from granularity {app.getGranularity()} ({granTime}) to 300 (5 min)"
         )
 
         if app.isSimulation():
             app.sim_smartswitch = True
 
-        app.notifyTelegram(
-            app.getMarket()
-            + " smart switch from granularity 3600 (1 hour) to 900 (15 min)"
+        app.setGranularity(300)
+        list(map(s.cancel, s.queue))
+        s.enter(5, 1, executeJob, (sc, app, state, websocket))
+    
+    elif (
+        app.getSmartSwitch() == 1 
+        and app.is1hEMA1226Bull(current_sim_date, websocket) is True 
+        and app.is6hEMA1226Bull(current_sim_date, websocket) is True
+        and app.getGranularity() != 300
+        and app.getGranularity() != 900
+        and app.getSmartSwitchRange() != "3600+300"
+    ):
+        Logger.info(
+            f"*** smart switch from granularity {app.getGranularity()} ({granTime}) to 900 (15 min) ***"
         )
+        app.notifyTelegram(
+            f"{app.getMarket()} smart switch from granularity {app.getGranularity()} ({granTime}) to 900 (15 min)"
+        )
+
+        if app.isSimulation():
+            app.sim_smartswitch = True
 
         app.setGranularity(900)
         list(map(s.cancel, s.queue))
         s.enter(5, 1, executeJob, (sc, app, state, websocket))
 
-    # use actual sim mode date to check smartchswitch
-    if (
-        app.getSmartSwitch() == 1
-        and app.getGranularity() == 900
-        and app.is1hEMA1226Bull(current_sim_date, websocket) is False
+    elif (
+        app.getSmartSwitch() == 1 
+        and app.is1hEMA1226Bull(current_sim_date, websocket) is False 
         and app.is6hEMA1226Bull(current_sim_date, websocket) is False
+        and app.getGranularity() != 3600
+        and app.getSmartSwitchRange() != "900-300"
     ):
         Logger.info(
-            "*** smart switch from granularity 900 (15 min) to 3600 (1 hour) ***"
+            f"*** smart switch from granularity {app.getGranularity()} ({granTime}) to 3600 (1 hour) ***"
+        )
+        app.notifyTelegram(
+            f"{app.getMarket()} smart switch from granularity {app.getGranularity()} ({granTime}) to 3600 (1 hour)"
         )
 
         if app.isSimulation():
             app.sim_smartswitch = True
 
-        app.notifyTelegram(
-            f"{app.getMarket()} smart switch from granularity 900 (15 min) to 3600 (1 hour)"
-        )
-
         app.setGranularity(3600)
         list(map(s.cancel, s.queue))
         s.enter(5, 1, executeJob, (sc, app, state, websocket))
 
+    elif (
+        app.getSmartSwitch() == 1 
+        and app.is15mEMA1226Bull(current_sim_date, websocket) is False 
+        and app.is1hEMA1226Bull(current_sim_date, websocket) is False
+        and app.getGranularity() != 900
+        and app.getGranularity() != 3600 
+        and app.getSmartSwitchRange() != "3600+300"
+    ):
+        Logger.info(
+            f"*** smart switch from granularity {app.getGranularity()} ({granTime}) to 900 (15 min) ***"
+        )
+        app.notifyTelegram(
+            f"{app.getMarket()} smart switch from granularity {app.getGranularity()} ({granTime}) to 900 (15 min)"
+        )
+
+        if app.isSimulation():
+            app.sim_smartswitch = True
+
+        app.setGranularity(900)
+        list(map(s.cancel, s.queue))
+        s.enter(5, 1, executeJob, (sc, app, state, websocket))
+ 
     if app.getExchange() == "binance" and app.getGranularity() == 86400:
         if len(df) < 250:
             # data frame should have 250 rows, if not retry
@@ -865,6 +913,7 @@ def executeJob(
                 textBox.doubleLine()
                 textBox.line("Iteration", str(state.iterations) + bullbeartext)
                 textBox.line("Timestamp", str(df_last.index.format()[0]))
+                textBox.line("Granularity", str(app.getGranularity()))                
                 textBox.singleLine()
                 textBox.line("Close", truncate(price))
                 textBox.line("EMA12", truncate(float(df_last["ema12"].values[0])))

@@ -48,6 +48,7 @@ class BotConfig:
         self.trailing_stop_loss_trigger = 0
         self.sell_at_loss = 1
         self.smart_switch = 1
+        self.smart_switch_range = "3600-900"
         self.telegram = False
         self.buypercent = 100
         self.sellpercent = 100
@@ -87,6 +88,7 @@ class BotConfig:
         self.consolelog = True
         self.consoleloglevel = "INFO"
 
+        self.ema1226_5m_cache = None
         self.ema1226_15m_cache = None
         self.ema1226_1h_cache = None
         self.ema1226_6h_cache = None
@@ -357,7 +359,12 @@ class BotConfig:
         parser.add_argument(
             "--smartswitch",
             type=int,
-            help="optionally smart switch between 1 hour and 15 minute intervals",
+            help="optionally smart switch between 1 hour, 15 minute and 5 minute intervals",
+        )
+        parser.add_argument(
+            "--smartswitchrange",
+            type=str,
+            help="coinbasepro: (3600-900, 3600-300, 900-300, 3600+300), binance: (1h-15m, 1h-5m, 15m-5m, 1h+5m)",
         )
         parser.add_argument(
             "--verbose", type=int, help="verbose output=1, minimal output=0"
